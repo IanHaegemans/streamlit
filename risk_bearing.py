@@ -2,7 +2,7 @@
 import streamlit as st
 import pandas as pd
 import math
-import plotly
+import plotly.graph_objects as go
 from io import BytesIO
 
 
@@ -151,7 +151,6 @@ last_period_df_relevant = last_period_df[["Year", "Principal Amount", "Interest 
 # Display the DataFrame using st.write
 st.write(last_period_df_relevant)
 
-import plotly.graph_objects as go
 
 # Create a trace for each data series
 trace1 = go.Scatter(x=last_period_df["Year"], y=last_period_df["Principal Amount"], mode='markers', name="Principal Amount", 
