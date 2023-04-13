@@ -2,8 +2,8 @@
 import streamlit as st
 import pandas as pd
 import math
-import plotly.graph_objects as go
 from io import BytesIO
+from plotly import graph_objects as go
 
 
 # Set up a green theme
