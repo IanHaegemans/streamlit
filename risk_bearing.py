@@ -163,7 +163,7 @@ trace3 = go.Scatter(x=last_period_df["Year"], y=last_period_df["Interest_due_to_
                     name="Interest due to Floating interest rate", marker=dict(size=10))
 
 trace4 = go.Scatter(x=last_period_df["Year"], y=last_period_df["Interest_due_to_Fixed interest rate"], mode='markers', 
-                    name="Interest due to fixed interest rate", marker=dict(size=10))
+                    name="Interest due to Fixed interest rate", marker=dict(size=10))
 
 trace5 = go.Scatter(x=last_period_df["Year"], y=last_period_df["Cash Outflow"], mode='markers', name="Cash Outflow", 
                     marker=dict(size=10))
@@ -204,11 +204,3 @@ st.download_button(
   mime='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
 )
 
-st.write("Use Quantum computing (it will operate at rougly minus 270 degrees Celsius)")
-# Create a button widget
-button = st.button("Quantum compute")
-
-# Check if the button is clicked
-if button:
-  # Call the st.snow() function to create snowflakes on the screen
-  st.snow()
