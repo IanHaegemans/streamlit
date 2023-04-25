@@ -4,6 +4,7 @@ import pandas as pd
 import math
 from io import BytesIO
 from plotly import graph_objects as go
+#import plotly.graph_objects as go
 
 
 # Set up a green theme
@@ -26,15 +27,17 @@ st.markdown(
     unsafe_allow_html=True
 )
 
-st.sidebar.info('To get started with the loan calculator, enter your loan details below to create an Input Table on the right side of the screen. The Floating and fixed interest rates will be combined and used to calculate the total interest rate for your loan. If either the Floating or fixed interest rate is not applicable to your loan, simply set that interest rate to 0.', icon="ℹ️")
+st.sidebar.info('To get started with the loan calculator, enter your loan details below to create an Input Table on the right side of the screen. If either the Floating or Fixed interest rate is not applicable to your loan, simply set that interest rate to 0.', icon="ℹ️")
 # Create a sidebar for user inputs
 st.sidebar.title("Loan simulator")
-Principal= st.sidebar.number_input("Enter the Principal Amount of the bond", value=1000)
+Principal= st.sidebar.number_input("Enter the Principal Amount of the bond", value=4000000)
 duration = st.sidebar.number_input("Enter the maturity of the bond (in years)", value=3)
-interest_rate=st.sidebar.slider("Select a fixed interest rate ", 0.0, 0.2, 0.05, step=0.001, format="%f")
-vinterest_rate=st.sidebar.slider("Select a Floating interest rate ", 0.0, 0.15, 0.05, step=0.001, format="%f")
+interest_rate=st.sidebar.slider("Select a fixed interest rate in basis points ",0, 1500, step=5, format="%f", value= 200)
+vinterest_rate=st.sidebar.slider("Select a Floating interest rate in basis points ",0, 1500, step=5, format="%f", value= 350)
 vinterest_rate_periods = st.sidebar.selectbox("Select the reference/reset period for the Floating interest rate", ["12 months", "6 months", "3 months"])
 payment_in_kind = st.sidebar.checkbox("Select if loan  type is 'Payment in kind', the interest due each year will increase the principal amount of the loan.")
+
+hedgecosts= st.sidebar.number_input("Enter the cost of the hedging instrument if applicable", value=0)
 
 # Calculate the number of periods per year based on Var_Interest_Rate type
 if vinterest_rate_periods == "3 months":
@@ -55,8 +58,11 @@ for i in range(duration * periods):
 
 
 # Allow the user to edit the Var_Interest_Rates with a data editor
+
+
 st.header("Input Table")
 rates = st.experimental_data_editor(rates)
+
 expander = st.expander("Info Modifiable Variables")
 expander.write('You can modify the variables for each period in the table above to suit your needs. For instance, you may want to simulate a higher Floating interest rate starting from year two. Simply make the changes to Floating interest rates starting from Year 2  in the Input Table and see how your loan will behave over time based on the new input')
 
@@ -76,14 +82,14 @@ annual_vrate=0
 annual_frate=0
 
 
-# If payment in kind option is enabled, add the Interest to be paid to the Principal Amount and recalculate the Interest to be paid
+# Calculation interest rates
 for i in range(len(rates)):
         # Add up the Total_interest_rate for each period within a year
-        annual_rate += rates.loc[i, "Total_interest_rate"]
+        annual_rate += rates.loc[i, "Total_interest_rate"]/10000
         # Add up the Total_varaiblet_rate for each period within a year
-        annual_vrate += rates.loc[i, "Floating interest rate"]
+        annual_vrate += rates.loc[i, "Floating interest rate"]/10000
         # Add up the Total_varaiblet_rate for each period within a year
-        annual_frate += rates.loc[i, "Fixed interest rate"]
+        annual_frate += rates.loc[i, "Fixed interest rate"]/10000
 
         
         if i != 0:
@@ -113,17 +119,17 @@ for i in range(len(rates)):
                 annual_frate=0
 
 
-# Show the cash outflows at the end of each year
-rates["Cash Outflow"] = 0
+# Show the Net cash outflows at the end of each year
+rates["Net cash outflow"] = 0
 for i in range(len(rates)):
     if (i + 1) % periods == 0: # End of year
         if i == len(rates) - 1: # Maturity date
-                rates.loc[i, "Cash Outflow"] = rates.loc[i, "Principal Amount"]+rates.loc[i, "Interest to be paid"]+rates.loc[i,"Prepayment"]
+                rates.loc[i, "Net cash outflow"] = rates.loc[i, "Principal Amount"]+rates.loc[i, "Interest to be paid"]+rates.loc[i,"Prepayment"]
         else: # Cash payment every year
-            rates.loc[i, "Cash Outflow"] = rates.loc[i, "Interest to be paid"]+rates.loc[i,"Prepayment"]
+            rates.loc[i, "Net cash outflow"] = rates.loc[i, "Interest to be paid"]+rates.loc[i,"Prepayment"]
 
 #total interest payments
-totalinterest = rates['Cash Outflow'].sum()-Principal
+total_net_cost = rates['Net cash outflow'].sum()-Principal+hedgecosts
 
 
 totalvinterest = rates["Interest_due_to_Floating_interest_rate"].sum()
@@ -133,8 +139,14 @@ totalfinterest = rates["Interest_due_to_Fixed interest rate"].sum()
 # Display the results
 st.header(" Output: Summary results")
 
+#format correctly
+formatted_total_net_cost = "{:,}".format(total_net_cost)
+formatted_totalvinterest = "{:,}".format(totalvinterest)
+formatted_totalfinterest = "{:,}".format(totalfinterest)
+formatted_hedgecosts = "{:,}".format(hedgecosts)
+
 st.write(f"The number of reference periods per year is {periods}")
-st.write(f"The total interest payment is {totalinterest}, with {totalvinterest} from the Floating and {totalfinterest}  from the fixed interest rate ")
+st.write(f"The total net cost is {formatted_total_net_cost} with {formatted_totalvinterest} from the Floating {formatted_totalfinterest} from the Fixed interest rate and {formatted_hedgecosts} from the hedging instrument ")
 st.write(f"The payment in kind option is {'enabled' if payment_in_kind else 'disabled'}")
 # Create a new dataframe to store only the rows for the last period in the year
 last_period_df = pd.DataFrame(columns=rates.columns)
@@ -146,7 +158,7 @@ for i in range(len(rates)):
         last_period_df = pd.concat([last_period_df, rates.iloc[[i]]])
 
 # Create a new DataFrame with only the relevant columns
-last_period_df_relevant = last_period_df[["Year", "Principal Amount", "Interest added to Principal", "Interest to be paid","Cash Outflow"]]
+last_period_df_relevant = last_period_df[["Year", "Principal Amount", "Interest added to Principal", "Interest to be paid","Net cash outflow"]]
 
 # Display the DataFrame using st.write
 st.write(last_period_df_relevant)
@@ -154,7 +166,7 @@ st.write(last_period_df_relevant)
 
 # Create a trace for each data series
 trace1 = go.Scatter(x=last_period_df["Year"], y=last_period_df["Principal Amount"], mode='markers', name="Principal Amount", 
-                    marker=dict(size=10))
+                 marker=dict(size=10))
 trace2 = go.Scatter(x=last_period_df["Year"], y=last_period_df["Interest added to Principal"], mode='markers', 
                     name="Interest added to Principal", marker=dict(size=10))
 
@@ -163,9 +175,9 @@ trace3 = go.Scatter(x=last_period_df["Year"], y=last_period_df["Interest_due_to_
                     name="Interest due to Floating interest rate", marker=dict(size=10))
 
 trace4 = go.Scatter(x=last_period_df["Year"], y=last_period_df["Interest_due_to_Fixed interest rate"], mode='markers', 
-                    name="Interest due to Fixed interest rate", marker=dict(size=10))
+                    name="Interest due to fixed interest rate", marker=dict(size=10))
 
-trace5 = go.Scatter(x=last_period_df["Year"], y=last_period_df["Cash Outflow"], mode='markers', name="Cash Outflow", 
+trace5 = go.Scatter(x=last_period_df["Year"], y=last_period_df["Net cash outflow"], mode='markers', name="Net cash outflow", 
                     marker=dict(size=10))
 
 # Create a layout with title and axis labels
